@@ -84,12 +84,12 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
         db.collection('users').insert({
             'id': userId,
             'points': 0
-        }, function() {
-            res.end(JSON.stringify({
-                'success': true,
-                'id': userId
-            }));
         });
+
+        res.end(JSON.stringify({
+            'success': true,
+            'id': userId
+        }));
     });
 
     /**
@@ -162,8 +162,6 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                 console.log(sensors)
 
                 db.collection('sensors').insert({
-                    'id': query.id
-                }, {
                     'id': query.id,
                     'sensors': sensors
                 });
