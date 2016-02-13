@@ -9,7 +9,7 @@ var port = process.env.PORT || 1337;
 
 MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parcade-arcade', function(err, db) {
     app.get('/', function(req, res) {
-        res.end("ParcadeArcade");
+        res.end('ParcadeArcade');
     });
 
     /**
@@ -46,20 +46,20 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                     });
 
                     res.end(JSON.stringify({
-                        success: true,
-                        points: parseInt(doc.points) + parseInt(query.points)
+                        'success': true,
+                        'points': parseInt(doc.points) + parseInt(query.points)
                     }));
                 } else {
                     res.end(JSON.stringify({
-                        success: false,
-                        error: 'no users document with id ' + query.id
+                        'success': false,
+                        'error': 'No users document with id: ' + query.id
                     }));
                 }
             });
         } else {
             res.end(JSON.stringify({
-                success: false,
-                error: "Missing parameters"
+                'success': false,
+                'error': 'Missing parameters'
             }));
         }
     });
@@ -86,8 +86,8 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
             'points': 0
         }, function() {
             res.end(JSON.stringify({
-                success: true,
-                id: userId
+                'success': true,
+                'id': userId
             }));
         });
     });
@@ -120,13 +120,48 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
             'id': query.id
         });
 
-        cursor.each(function(err, doc) {
-            if (doc !== null) {
-                var sensors = doc.sensors;
+        cursor.count(function(err, count) {
+            if (count > 0) {
+                cursor.each(function(err, doc) {
+                    if (doc !== null) {
+                        var sensors = doc.sensors;
+
+                        if (!doc.sensors) {
+                            sensors = {};
+                        }
+
+                        console.log(sensors)
+
+                        sensors[query.sensor] = query.value;
+
+                        console.log('updating')
+                        console.log(sensors)
+
+                        db.collection('sensors').update({
+                            'id': query.id
+                        }, {
+                            'id': query.id,
+                            'sensors': sensors
+                        });
+
+                        res.end(JSON.stringify({
+                            'success': true,
+                            'response': {
+                                'id': query.id,
+                                'sensors': sensors
+                            }
+                        }));
+                    }
+                });
+            } else {
+                var sensors = {};
 
                 sensors[query.sensor] = query.value;
 
-                db.collection('sensors').update({
+                console.log('inserting')
+                console.log(sensors)
+
+                db.collection('sensors').insert({
                     'id': query.id
                 }, {
                     'id': query.id,
@@ -136,14 +171,9 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                 res.end(JSON.stringify({
                     'success': true,
                     'response': {
-                        'name': doc.name,
-                        'sensors': doc.sensors
+                        'id': query.id,
+                        'sensors': sensors
                     }
-                }));
-            } else {
-                res.end(JSON.stringify({
-                    'success': false,
-                    'error': 'no sensors document with name ' + query.name
                 }));
             }
         });
@@ -221,8 +251,8 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
             }
         } else {
             res.end(JSON.stringify({
-                success: false,
-                error: "Missing parameters"
+                'success': false,
+                'error': 'Missing parameters'
             }));
         }
     });
@@ -248,24 +278,33 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
         res.setHeader('Content-Type', 'application/json');
 
+        console.log(query);
+
         var cursor = db.collection('sensors').find({
-            'name': query.name
+            'id': query.id
         });
 
         cursor.each(function(err, doc) {
             if (doc !== null) {
+                var sensors = doc.sensors;
+
+                if (!doc.sensors) {
+                    sensors = {};
+                }
+
+                console.log(sensors)
+
                 res.end(JSON.stringify({
                     'success': true,
                     'response': {
-                        'name': doc.name,
                         'id': query.id,
-                        'value': doc.sensors[query.id]
+                        'sensors': sensors
                     }
                 }));
             } else {
                 res.end(JSON.stringify({
                     'success': false,
-                    'error': 'no error document with name ' + query.name
+                    'error': 'Could not find id: ' + query.id
                 }));
             }
         });
@@ -305,18 +344,21 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                 } else {
                     res.end(JSON.stringify({
                         'success': false,
-                        'error': 'No users document with id ' + query.id
+                        'error': 'No users document with id: ' + query.id
                     }));
                 }
             });
         } else {
             res.end(JSON.stringify({
                 'success': false,
-                'error': "Missing parameters"
+                'error': 'Missing parameters'
             }));
         }
     });
 
+    /**
+     * Send a message to all connected listener pi's every 60 seconds
+     */
     setInterval(function() {
         var cursor = db.collection('listeners').find();
 
@@ -346,26 +388,4 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
     });
 });
 
-app.use(express.static(__dirname + "/public"));
-
-
-/*{
-    "id": 1,
-    "capabilities": [
-        {
-            "name": "green_button",
-            "ioType": 0,
-            "port": 1
-        },
-        {
-            "name": "ultrasonic",
-            "ioType": 0,
-            "port": 2
-        },
-        {
-            "name": "buzzer",
-            "ioType": 1,
-            "port": 3
-        }
-    ]
-}*/
+app.use(express.static(__dirname + '/public'));
