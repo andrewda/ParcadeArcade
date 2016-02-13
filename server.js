@@ -7,6 +7,10 @@ var MongoClient = require('mongodb');
 var port = process.env.PORT || 1337;
 
 MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parcade-arcade', function(err, db) {
+    app.get('/', function(req, res) {
+        res.end(fs.readFileSync("./html/login.html", "utf8"));
+    });
+
     /**
      * On a POST request to /points, add points to the user with a specific
      * userId.
@@ -14,8 +18,8 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
      * POST http://127.0.0.1/points/?id=13371c825290295966131f43f818ecca&points=5
      * ...
      * {
-     *    "success": true,
-     *    "points": 25
+     *   "success": true,
+     *   "points": 25
      * }
      *
      */
@@ -58,8 +62,8 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
      * POST http://127.0.0.1/create_user
      * ...
      * {
-     *    "success": true,
-     *    "id": "13371c825290295966131f43f818ecca"
+     *   "success": true,
+     *   "id": "13371c825290295966131f43f818ecca"
      * }
      *
      */
@@ -86,13 +90,13 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
      * POST http://127.0.0.1/push/?name=ultrasonic&id=1&value=123
      * ...
      * {
-     *    "success": true,
-     *    "response": {
-     *      "name": "ultrasonic",
-     *      "sensors": {
-     *        "1": "123"
-     *      }
-     *    }
+     *   "success": true,
+     *   "response": {
+     *     "name": "ultrasonic",
+     *     "sensors": {
+     *       "1": "123"
+     *     }
+     *   }
      * }
      *
      */
@@ -174,7 +178,7 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
             } else {
                 res.end(JSON.stringify({
                     success: false,
-                    error: 'could not find document ' + query.name
+                    error: 'no error document with name ' + query.name
                 }));
             }
         });
@@ -187,9 +191,9 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
      * GET http://127.0.0.1/get_points/?id=13371c825290295966131f43f818ecca
      * ...
      * {
-     *    "success": true,
-     *    "id": "13371c825290295966131f43f818ecca"
-     *    "points": 25
+     *   "success": true,
+     *   "id": "13371c825290295966131f43f818ecca"
+     *   "points": 25
      * }
      *
      */
@@ -225,3 +229,5 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
         console.log('Listening at port', port);
     });
 });
+
+app.use(express.static(__dirname + "/public"));
