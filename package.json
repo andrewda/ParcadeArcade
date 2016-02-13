@@ -1,0 +1,26 @@
+{
+  "name": "ParcadeArcade",
+  "version": "1.0.0",
+  "description": "ParcadeArcade - Hack For a Cause 2016",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.13.4",
+    "md5": "^2.0.0",
+    "mongodb": "^2.1.7"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/andrewda/ParcadeArcade"
+  },
+  "author": "Andrew Dassonville",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andrewda/ParcadeArcade/issues"
+  },
+  "homepage": "https://github.com/andrewda/ParcadeArcade"
+}
