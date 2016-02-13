@@ -8,6 +8,10 @@ var MongoClient = require('mongodb');
 var port = process.env.PORT || 1337;
 
 MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parcade-arcade', function(err, db) {
+    app.get('/', function(req, res) {
+        res.end("ParcadeArcade");
+    });
+
     /**
      * On a POST request to /points, add points to the user with a specific
      * userId.
@@ -113,19 +117,19 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
         console.log(query);
 
         var cursor = db.collection('sensors').find({
-            'name': query.name
+            'id': query.id
         });
 
         cursor.each(function(err, doc) {
             if (doc !== null) {
                 var sensors = doc.sensors;
 
-                sensors[query.id] = query.value;
+                sensors[query.sensor] = query.value;
 
                 db.collection('sensors').update({
-                    'name': query.name
+                    'id': query.id
                 }, {
-                    'name': query.name,
+                    'id': query.id,
                     'sensors': sensors
                 });
 
