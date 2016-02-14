@@ -282,7 +282,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
      * On a POST request to /add_capability, add a capability to the listener
      * with the specified id (as moteId).
      *
-     * POST http://127.0.0.1/user_interaction/?moteId=13371c825290295966131f43f818ecca&name=led&ioType=2&port=1
+     * POST http://127.0.0.1/add_capability/?moteId=13371c825290295966131f43f818ecca&name=led&ioType=2&port=1
      * ...
      * {
      *   "success": true
