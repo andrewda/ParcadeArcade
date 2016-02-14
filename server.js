@@ -10,6 +10,7 @@ var md5 = require('md5');
 var fs = require('fs');
 var request = require('request');
 var bodyParser = require('body-parser');
+var handlebars = require('handlebars');
 var mongo = require('mongodb');
 
 var port = process.env.PORT || 1337;
@@ -24,9 +25,26 @@ var mongoCredentials = {
     'database': 'dsXXXXXX.mongolab.com:XXXXX/database'
 };*/
 
+var handle = handlebars.compile(fs.readFileSync('./html/table.html', 'utf8'));
+
 mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.password + '@' + mongoCredentials.database, function(err, db) {
     app.get('/', function(req, res) {
-        res.end('ParcadeArcade server...');
+        var cursor = db.collection('listeners').find();
+
+        var info = [];
+
+        cursor.each(function(err, doc) {
+            if (doc !== null) {
+                info.push({
+                    'name': doc.name,
+                    'time': Math.floor(Date.now() / 1000) - doc.last_interaction + ' seconds ago'
+                });
+            } else {
+                res.end(handle({
+                    info: info
+                }));
+            }
+        });
     });
 
     /**
@@ -481,6 +499,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
 
         cursor.each(function(err, doc) {
             if (doc !== null) {
+                console.log(doc)
                 if (doc.capabilities[0]) {
                     request.post('http://' + doc.ip + '/set?ioType=' + doc.capabilities[0].ioType + '&port=' + doc.capabilities[0].ioType + '&value=' + state, function(err, response, body) {
                         if (err) {
