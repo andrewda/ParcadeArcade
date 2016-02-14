@@ -35,8 +35,15 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
 
         cursor.each(function(err, doc) {
             if (doc !== null) {
+                var capability = [];
+
+                console.log(doc.capabilities[0])
+                doc.capabilities.forEach(function(capa) {
+                    capability.push(capa.name);
+                });
                 info.push({
                     'name': doc.name,
+                    'capabilities': capability.join(', '),
                     'time': Math.floor(Date.now() / 1000) - doc.last_interaction + ' seconds ago'
                 });
             } else {
@@ -163,7 +170,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                             sensors = {};
                         }
 
-                        sensors[query.sensor] = {
+                        sensors[query.name] = {
                             'value': query.value,
                             'timestamp': time
                         }
@@ -188,7 +195,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
             } else {
                 var sensors = {};
 
-                sensors[query.sensor] = {
+                sensors[query.name] = {
                     'value': query.value,
                     'timestamp': time
                 }
@@ -229,6 +236,8 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
         var query = req.query;
         var time = Math.floor(Date.now() / 1000);
 
+        console.log(query);
+
         if (query.name && query.description) {
             var cursor = db.collection('listeners').find({
                 'ip': query.ip
@@ -247,7 +256,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                         'description': query.description,
                         'capabilities': [],
                         'timestamp': time,
-                        'last_interaction': 0
+                        'last_interaction': time
                     });
                 } else {
                     db.collection('listeners').insert({
@@ -257,7 +266,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                         'description': query.description,
                         'capabilities': [],
                         'timestamp': time,
-                        'last_interaction': 0
+                        'last_interaction': time
                     });
                 }
 
@@ -292,6 +301,8 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
     app.post('/add_capability', function(req, res) {
         var query = req.query;
 
+        console.log(query);
+
         if (query.moteId && query.name && query.ioType && query.port) {
             var cursor = db.collection('listeners').find({
                 'id': query.moteId
@@ -317,7 +328,8 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                                 'name': doc.name,
                                 'description': doc.description,
                                 'capabilities': capabilities,
-                                'timestamp': doc.timestamp
+                                'timestamp': doc.timestamp,
+                                'last_interaction': doc.last_interaction
                             });
                         } else {
                             res.end(JSON.stringify({
@@ -377,7 +389,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                 } else {
                     res.end(JSON.stringify({
                         'success': false,
-                        'error': 'Could not get document with id: ' + id
+                        'error': 'Could not get document with id: ' + query.id
                     }));
                 }
             });
@@ -488,7 +500,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
     });
 
     /**
-     * Send a message to all connected listener pi's every 60 seconds
+     * Send a message to all connected listener pi's every 5 seconds
      */
     var state = 0;
 
@@ -499,19 +511,24 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
 
         cursor.each(function(err, doc) {
             if (doc !== null) {
-                console.log(doc)
-                if (doc.capabilities[0]) {
-                    request.post('http://' + doc.ip + '/set?ioType=' + doc.capabilities[0].ioType + '&port=' + doc.capabilities[0].ioType + '&value=' + state, function(err, response, body) {
-                        if (err) {
-                            console.log(err);
-                        } else if (response.statusCode !== 200) {
-                            console.log(response.statusCode);
-                        }
-                    });
+                if (doc.capabilities) {
+                    if (doc.capabilities[0]) {
+                        request.post('http://' + doc.ip + '/set?ioType=' + doc.capabilities[0].ioType + '&port=' + doc.capabilities[0].ioType + '&value=' + state, function(err, response, body) {
+                            if (err) {
+                                console.log(err);
+
+                                /*db.collection('listeners').remove({
+                                    'ip': doc.ip
+                                });*/
+                            } else if (response.statusCode !== 200) {
+                                console.log(response.statusCode);
+                            }
+                        });
+                    }
                 }
             }
         });
-    }, 60000);
+    }, 5000);
 
     /**
      * Start listening on the specified port.
