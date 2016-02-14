@@ -1,15 +1,32 @@
+/**
+ * Node.js back-end server for ParcadeArcade.
+ *
+ * Created by the South Eugene Robotics Team
+ */
+
 var express = require('express');
 var app = express();
 var md5 = require('md5');
 var fs = require('fs');
 var request = require('request');
-var MongoClient = require('mongodb');
+var bodyParser = require('body-parser');
+var mongo = require('mongodb');
 
 var port = process.env.PORT || 1337;
+var mongoCredentials = {
+    'username': 'admin',
+    'password': '4dm1n_u53r',
+    'database': 'ds061385.mongolab.com:61385/parcade-arcade'
+};
+/*var mongoCredentials = {
+    'username': 'ADMIN',
+    'password': 'ADMIN PASSWORD',
+    'database': 'dsXXXXXX.mongolab.com:XXXXX/database'
+};*/
 
-MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parcade-arcade', function(err, db) {
+mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.password + '@' + mongoCredentials.database, function(err, db) {
     app.get('/', function(req, res) {
-        res.end('ParcadeArcade');
+        res.end('ParcadeArcade server...');
     });
 
     /**
@@ -36,8 +53,6 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
             cursor.each(function(err, doc) {
                 if (doc !== null) {
-                    console.log(doc);
-
                     db.collection('users').update({
                         'id': query.id
                     }, {
@@ -77,7 +92,7 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
      *
      */
     app.post('/create_user', function(req, res) {
-        var userId = md5(req.connection.remoteAddress);
+        var userId = md5(req.headers['x-forwarded-for'] || req.connection.remoteAddress);
 
         res.setHeader('Content-Type', 'application/json');
 
@@ -114,13 +129,13 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
         res.setHeader('Content-Type', 'application/json');
 
-        console.log(query);
-
         var cursor = db.collection('sensors').find({
             'id': query.id
         });
 
         cursor.count(function(err, count) {
+            var time = Math.floor(Date.now() / 1000);
+
             if (count > 0) {
                 cursor.each(function(err, doc) {
                     if (doc !== null) {
@@ -130,18 +145,17 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                             sensors = {};
                         }
 
-                        console.log(sensors)
-
-                        sensors[query.sensor] = query.value;
-
-                        console.log('updating')
-                        console.log(sensors)
+                        sensors[query.sensor] = {
+                            'value': query.value,
+                            'timestamp': time
+                        }
 
                         db.collection('sensors').update({
                             'id': query.id
                         }, {
                             'id': query.id,
-                            'sensors': sensors
+                            'sensors': sensors,
+                            'timestamp': time
                         });
 
                         res.end(JSON.stringify({
@@ -156,10 +170,10 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
             } else {
                 var sensors = {};
 
-                sensors[query.sensor] = query.value;
-
-                console.log('inserting')
-                console.log(sensors)
+                sensors[query.sensor] = {
+                    'value': query.value,
+                    'timestamp': time
+                }
 
                 db.collection('sensors').insert({
                     'id': query.id,
@@ -179,7 +193,7 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
     /**
      * On a POST request to /add_listener, update or insert the database's
-     * values for the listener (Raspberry Pi) with the specified id.
+     * values for the listener with the specified id.
      *
      * POST http://127.0.0.1/add_listener/?id=1&capabilities={ CAPABILITIES-JSON }
      * ...
@@ -197,56 +211,162 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
         var query = req.query;
         var time = Math.floor(Date.now() / 1000);
 
-        if (query.capabilities && query.id) {
-            var capabilities = false;
+        if (query.name && query.description) {
             var cursor = db.collection('listeners').find({
-                'id': query.id
+                'ip': query.ip
             });
 
             res.setHeader('Content-Type', 'application/json');
 
-            try {
-                capabilities = JSON.parse(query.capabilities);
-            } catch (e) {
-                console.log(e);
+            cursor.count(function(err, count) {
+                if (count > 0) {
+                    db.collection('listeners').update({
+                        'ip': query.ip
+                    }, {
+                        'ip': query.ip,
+                        'id': md5(query.ip),
+                        'name': query.name,
+                        'description': query.description,
+                        'capabilities': [],
+                        'timestamp': time,
+                        'last_interaction': 0
+                    });
+                } else {
+                    db.collection('listeners').insert({
+                        'ip': query.ip,
+                        'id': md5(query.ip),
+                        'name': query.name,
+                        'description': query.description,
+                        'capabilities': [],
+                        'timestamp': time,
+                        'last_interaction': 0
+                    });
+                }
 
                 res.end(JSON.stringify({
-                    'success': false,
-                    'error': e.toString()
-                }));
-            }
-
-            if (capabilities) {
-                cursor.count(function(err, count) {
-                    if (count > 0) {
-                        db.collection('listeners').update({
-                            'id': query.id
-                        }, {
-                            'ip': req.connection.remoteAddress,
-                            'id': query.id,
-                            'capabilities': capabilities,
-                            'timestamp': time
-                        });
-                    } else {
-                        db.collection('listeners').insert({
-                            'ip': req.connection.remoteAddress,
-                            'id': query.id,
-                            'capabilities': capabilities,
-                            'timestamp': time
-                        });
+                    'success': true,
+                    'response': {
+                        'ip': query.ip,
+                        'id': md5(query.ip),
+                        'timestamp': time
                     }
+                }));
+            });
+        } else {
+            res.end(JSON.stringify({
+                'success': false,
+                'error': 'Missing parameters'
+            }));
+        }
+    });
 
-                    res.end(JSON.stringify({
-                        'success': true,
-                        'response': {
-                            'ip': req.connection.remoteAddress,
-                            'id': query.id,
-                            'capabilities': capabilities,
-                            'timestamp': time
+    /**
+     * On a POST request to /add_capability, add a capability to the listener
+     * with the specified id (as moteId).
+     *
+     * POST http://127.0.0.1/user_interaction/?moteId=13371c825290295966131f43f818ecca&name=led&ioType=2&port=1
+     * ...
+     * {
+     *   "success": true
+     * }
+     *
+     */
+    app.post('/add_capability', function(req, res) {
+        var query = req.query;
+
+        if (query.moteId && query.name && query.ioType && query.port) {
+            var cursor = db.collection('listeners').find({
+                'id': query.moteId
+            });
+
+            cursor.count(function(err, count) {
+                if (count > 0) {
+                    cursor.each(function(err, doc) {
+                        if (doc !== null) {
+                            var capabilities = doc.capabilities;
+
+                            capabilities.push({
+                                'name': query.name,
+                                'ioType': query.ioType,
+                                'port': query.port
+                            });
+
+                            db.collection('listeners').update({
+                                'id': query.moteId
+                            }, {
+                                'ip': doc.ip,
+                                'id': query.moteId,
+                                'name': doc.name,
+                                'description': doc.description,
+                                'capabilities': capabilities,
+                                'timestamp': doc.timestamp
+                            });
+                        } else {
+                            res.end(JSON.stringify({
+                                'success': false,
+                                'error': 'Specified id does not exist'
+                            }));
                         }
+                    });
+                }
+
+                res.end(JSON.stringify({
+                    'success': true
+                }));
+            });
+        } else {
+            res.end(JSON.stringify({
+                'success': false,
+                'error': 'Missing parameters'
+            }));
+        }
+    });
+
+    /**
+     * On a POST request to /user_interaction, update the database with the
+     * current unix time stamp. This will be called by the listeners whenever
+     * a user interacts with them.
+     *
+     * POST http://127.0.0.1/user_interaction/?id=13371c825290295966131f43f818ecca
+     * ...
+     * {
+     *   "success": true
+     * }
+     *
+     */
+    app.post('/user_interaction', function(req, res) {
+        var query = req.query;
+        var time = Math.floor(Date.now() / 1000);
+
+        if (query.id) {
+            var cursor = db.collection('listeners').find({
+                'id': query.id
+            });
+
+            cursor.each(function(err, doc) {
+                if (doc !== null) {
+                    db.collection('listeners').update({
+                        'id': query.id
+                    }, {
+                        'ip': doc.ip,
+                        'id': doc.id,
+                        'name': doc.name,
+                        'description': doc.description,
+                        'capabilities': doc.capabilities,
+                        'timestamp': doc.timestamp,
+                        'last_interaction': time
+                    });
+                } else {
+                    res.end(JSON.stringify({
+                        'success': false,
+                        'error': 'Could not get document with id: ' + id
                     }));
-                });
-            }
+                }
+            });
+
+            res.end(JSON.stringify({
+                'success': true
+            }));
         } else {
             res.end(JSON.stringify({
                 'success': false,
@@ -276,8 +396,6 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
         res.setHeader('Content-Type', 'application/json');
 
-        console.log(query);
-
         var cursor = db.collection('sensors').find({
             'id': query.id
         });
@@ -289,8 +407,6 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
                 if (!doc.sensors) {
                     sensors = {};
                 }
-
-                console.log(sensors)
 
                 res.end(JSON.stringify({
                     'success': true,
@@ -333,7 +449,6 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
 
             cursor.each(function(err, doc) {
                 if (doc !== null) {
-                    console.log(doc)
                     res.end(JSON.stringify({
                         'success': true,
                         'id': query.id,
@@ -357,23 +472,24 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
     /**
      * Send a message to all connected listener pi's every 60 seconds
      */
+    var state = 0;
+
     setInterval(function() {
         var cursor = db.collection('listeners').find();
 
+        state = state ? 0 : 1;
+
         cursor.each(function(err, doc) {
             if (doc !== null) {
-                request.post('http://' + doc.ip, {
-                    params: {
-                        'id': doc.id,
-                        'capabilities': doc.capabilities
-                    }
-                }, function(err, response, body) {
-                    if (err) {
-                        console.log(err);
-                    } else {
-                        console.log(body);
-                    }
-                })
+                if (doc.capabilities[0]) {
+                    request.post('http://' + doc.ip + '/set?ioType=' + doc.capabilities[0].ioType + '&port=' + doc.capabilities[0].ioType + '&value=' + state, function(err, response, body) {
+                        if (err) {
+                            console.log(err);
+                        } else if (response.statusCode !== 200) {
+                            console.log(response.statusCode);
+                        }
+                    });
+                }
             }
         });
     }, 60000);
@@ -385,5 +501,10 @@ MongoClient.connect('mongodb://admin:4dm1n_u53r@ds061385.mongolab.com:61385/parc
         console.log('Listening at port', port);
     });
 });
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({
+    extended: true
+}));
 
 app.use(express.static(__dirname + '/public'));
