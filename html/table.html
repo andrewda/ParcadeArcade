@@ -8,12 +8,14 @@
 <body>
   <table border="1">
     <tr>
-      <th>Listener Name</th>
-      <th>Listener Last Used</th>
+      <th>Name</th>
+      <th>Capabilities</th>
+      <th>Last Used</th>
     </tr>
     {{#each info}}
     <tr>
       <td>{{this.name}}</td>
+      <td>{{this.capabilities}}</td>
       <td>{{this.time}}</td>
     </tr>
     {{/each}}
