@@ -19,11 +19,6 @@ var mongoCredentials = {
     'password': '4dm1n_u53r',
     'database': 'ds061385.mongolab.com:61385/parcade-arcade'
 };
-/*var mongoCredentials = {
-    'username': 'ADMIN',
-    'password': 'ADMIN PASSWORD',
-    'database': 'dsXXXXXX.mongolab.com:XXXXX/database'
-};*/
 
 var handle = handlebars.compile(fs.readFileSync('./html/table.html', 'utf8'));
 
@@ -81,8 +76,9 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                     db.collection('users').update({
                         'id': query.id
                     }, {
-                        'id': query.id,
-                        'points': parseInt(doc.points) + parseInt(query.points)
+                        $set: {
+                            'points': parseInt(doc.points) + parseInt(query.points)
+                        }
                     });
 
                     res.end(JSON.stringify({
@@ -178,9 +174,10 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                         db.collection('sensors').update({
                             'id': query.id
                         }, {
-                            'id': query.id,
-                            'sensors': sensors,
-                            'timestamp': time
+                            $set: {
+                                'sensors': sensors,
+                                'timestamp': time
+                            }
                         });
 
                         res.end(JSON.stringify({
@@ -250,13 +247,13 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                     db.collection('listeners').update({
                         'ip': query.ip
                     }, {
-                        'ip': query.ip,
-                        'id': md5(query.ip),
-                        'name': query.name,
-                        'description': query.description,
-                        'capabilities': [],
-                        'timestamp': time,
-                        'last_interaction': time
+                        $set: {
+                            'name': query.name,
+                            'description': query.description,
+                            'capabilities': [],
+                            'timestamp': time,
+                            'last_interaction': time
+                        }
                     });
                 } else {
                     db.collection('listeners').insert({
@@ -323,13 +320,9 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                             db.collection('listeners').update({
                                 'id': query.moteId
                             }, {
-                                'ip': doc.ip,
-                                'id': query.moteId,
-                                'name': doc.name,
-                                'description': doc.description,
-                                'capabilities': capabilities,
-                                'timestamp': doc.timestamp,
-                                'last_interaction': doc.last_interaction
+                                $set: {
+                                    'capabilities': capabilities
+                                }
                             });
                         } else {
                             res.end(JSON.stringify({
@@ -378,13 +371,9 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
                     db.collection('listeners').update({
                         'id': query.id
                     }, {
-                        'ip': doc.ip,
-                        'id': doc.id,
-                        'name': doc.name,
-                        'description': doc.description,
-                        'capabilities': doc.capabilities,
-                        'timestamp': doc.timestamp,
-                        'last_interaction': time
+                        $set: {
+                            'last_interaction': time
+                        }
                     });
                 } else {
                     res.end(JSON.stringify({
@@ -462,7 +451,7 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
      * ...
      * {
      *   "success": true,
-     *   "id": "13371c825290295966131f43f818ecca"
+     *   "id": "13371c825290295966131f43f818ecca",
      *   "points": 25
      * }
      *
@@ -513,15 +502,14 @@ mongo.connect('mongodb://' + mongoCredentials.username + ':' + mongoCredentials.
             if (doc !== null) {
                 if (doc.capabilities) {
                     if (doc.capabilities[0]) {
+                        console.log(doc)
                         request.post('http://' + doc.ip + '/set?ioType=' + doc.capabilities[0].ioType + '&port=' + doc.capabilities[0].ioType + '&value=' + state, function(err, response, body) {
                             if (err) {
                                 console.log(err);
 
-                                /*db.collection('listeners').remove({
+                                db.collection('listeners').remove({
                                     'ip': doc.ip
-                                });*/
-                            } else if (response.statusCode !== 200) {
-                                console.log(response.statusCode);
+                                });
                             }
                         });
                     }
